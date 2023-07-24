@@ -7,10 +7,28 @@ const { MongoClient, ServerApiVersion } = require('mongodb');
 require('dotenv').config()
 app.use(cors());
 app.use(express.json());
+app.use(express.static("public"));
 
+// jwt
+const jwt = require('jsonwebtoken');
 
+const verifyJwt = (req, res, next) => {
+  const authorization = req.headers.authorization;
+  // console.log(authorization)
+  if (!authorization) {
+    return res.status(401).send({ error: true, message: 'unauthorized access' })
+  }
+  // bearer token
+  const token = authorization.split(' ')[1]
+  jwt.verify(token, process.env.JWT_TOKEN_SECRET, (err, decoded) => {
 
-
+    if (err) {
+      return res.status(401).send({ error: true, message: 'unauthorized access' })
+    }
+    req.decoded = decoded
+    next()
+  })
+}
 
 
 
@@ -38,11 +56,28 @@ async function run() {
 
 
 
+    app.post('/users', async (req, res) => {
+      const user = req.body
+      console.log(user)
+      const query = { email: user.email }
+      const existingUser = await userCollection.findOne(query)
+      console.log('existing user', existingUser)
+      if (existingUser) {
+        return res.send({ message: 'user already existingUser' })
+      }
+
+      const result = await userCollection.insertOne(user)
+      res.send(result)
+    })
 
 
 
-
-
+// jwt 
+app.post('/jwt', async (req, res) => {
+  const user = req.body
+  const token = jwt.sign(user, process.env.JWT_TOKEN_SECRET, { expiresIn: '10h' });
+  res.send({ token })
+})
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
